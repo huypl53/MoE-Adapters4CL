@@ -60,7 +60,7 @@ CUDA_VISIBLE_DEVICES=${GPU} python -m src.main \
     --method finetune \
     --save ckpt/exp_${exp_no} \
     --data-location /home/dhw/yjz_workspace/data/data \
-    --ffn_adapt_where AdapterDoubleEncoder\
+    --ffn_adapt_where AdapterDoubleEncoder\  # if ffn_adapt and ffn_adapt_where, then MoE is activated
     --ffn_adapt \
     --task_id ${j} \
     --multi_experts \
@@ -91,7 +91,7 @@ for ((i = 1; i < ${#dataset[@]}; i++)); do
         --apply_moe \
         --repeat_train \
         --multi_experts \
-        --frozen \
+        --frozen \   # if `frozen`, then freeze adapters that were stored in `frozen_path`
         --frozen-path ${frozen_path}${num} \
         --experts_num ${num} \
         --is_train \
