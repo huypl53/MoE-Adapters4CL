@@ -20,7 +20,7 @@ class Adapter(nn.Module):
         self.n_embd = d_model if d_model is None else d_model
         self.down_size = bottleneck
 
-        #_before
+        # _before
         self.adapter_layernorm_option = adapter_layernorm_option
 
         self.adapter_layer_norm_before = None
@@ -49,17 +49,18 @@ class Adapter(nn.Module):
     def forward(self, x, add_residual=True, residual=None):
 
         residual = x if residual is None else residual
-        if self.adapter_layernorm_option == 'in': #  none
+        if self.adapter_layernorm_option == 'in':  # none
             x = self.adapter_layer_norm_before(x)
 
         down = self.down_proj(x)
         down = self.non_linear_func(down)
-        down = nn.functional.dropout(down, p=self.dropout, training=self.training)
+        down = nn.functional.dropout(
+            down, p=self.dropout, training=self.training)
         up = self.up_proj(down)
 
         up = up * self.scale
 
-        if self.adapter_layernorm_option == 'out': #  none
+        if self.adapter_layernorm_option == 'out':  # none
             up = self.adapter_layer_norm_before(up)
 
         if add_residual:  # False
