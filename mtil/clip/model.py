@@ -10,6 +10,7 @@ from torch import nn
 from .adapter import Adapter
 from torch.distributions.normal import Normal
 from collections import Counter
+from .attention import MultiheadAttention
 
 val_task_id = None
 
@@ -289,7 +290,9 @@ class ResidualAttentionBlock(nn.Module):
                  adapter_flag = False, args=None, text_or_image=None, i=None):
         super().__init__()
 
-        self.attn = nn.MultiheadAttention(d_model, n_head)
+        # self.attn = nn.MultiheadAttention(d_model, n_head)
+        # MultiheadAttention with LoRA
+        self.attn = MultiheadAttention(d_model, n_head)
         self.ln_1 = LayerNorm(d_model)
         self.mlp = nn.Sequential(OrderedDict([
             ("c_fc", nn.Linear(d_model, d_model * 4)),
