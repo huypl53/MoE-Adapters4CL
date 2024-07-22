@@ -6,10 +6,10 @@ class LoRA(nn.Module):
     def __init__(
         self, n_emb: int, rank: int, dropout=0.1, scale="1.0", device: str = "cpu"
     ):
-        super().__init__()
+        super(LoRA, self).__init__()
         self.n_emb = n_emb
-        self.r = rank
-        self._device = device
+        self.r_ = rank
+        self.device_ = device
 
         self.lora_a_ = nn.Linear(
             self.n_emb,
@@ -38,7 +38,7 @@ class LoRA(nn.Module):
             self.lora_b_(self.lora_a_(self.dropout_(x.to(torch.float32)))) * self.scale_
         )
 
-        if residual:  # False
+        if residual is not None:  # False
             return residual + result_lora.to(residual.dtype)
         else:
             return result_lora

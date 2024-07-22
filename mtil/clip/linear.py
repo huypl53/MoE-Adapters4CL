@@ -1,9 +1,10 @@
 from torch import nn
-from mtil.clip.lora import LoRA
+from .lora import LoRA
 
 
 class Linear(nn.Module):
     def __init__(self, base_layer: nn.Module, args=None):
+        super(Linear, self).__init__()
         self.base_layer_ = base_layer
         lora_n_emd = args.lin_lora_w
         lora_rank = args.lin_lora_r

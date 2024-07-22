@@ -292,7 +292,7 @@ class ResidualAttentionBlock(nn.Module):
 
         # self.attn = nn.MultiheadAttention(d_model, n_head)
         # MultiheadAttention with LoRA
-        self.attn = MultiheadAttention(d_model, n_head)
+        self.attn = MultiheadAttention(d_model, n_head, args)
         self.ln_1 = LayerNorm(d_model)
         self.mlp = nn.Sequential(OrderedDict([
             ("c_fc", nn.Linear(d_model, d_model * 4)),
@@ -366,7 +366,7 @@ class ResidualAttentionBlock(nn.Module):
 
     def attention(self, x: torch.Tensor):
         self.attn_mask = self.attn_mask.to(dtype=x.dtype, device=x.device) if self.attn_mask is not None else None
-        return self.attn(x, x, x, need_weights=False, attn_mask=self.attn_mask)[0]
+        return self.attn(x, x, x, attn_mask=self.attn_mask)[0]
 
 
     def cv_squared(self, x):
@@ -689,8 +689,8 @@ class CLIP(nn.Module):
         attn_std = self.transformer.width ** -0.5
         fc_std = (2 * self.transformer.width) ** -0.5
         for block in self.transformer.resblocks:
-            nn.init.normal_(block.attn.in_proj_weight, std=attn_std)
-            nn.init.normal_(block.attn.out_proj.weight, std=proj_std)
+            # nn.init.normal_(block.attn.in_proj_weight, std=attn_std)
+            # nn.init.normal_(block.attn.out_proj.weight, std=proj_std)
             nn.init.normal_(block.mlp.c_fc.weight, std=fc_std)
             nn.init.normal_(block.mlp.c_proj.weight, std=proj_std)
 
@@ -782,7 +782,7 @@ def build_model(state_dict: dict, args=None):
     if vit:
         vision_width = state_dict["visual.conv1.weight"].shape[0]
         vision_layers = len(
-            [k for k in state_dict.keys() if k.startswith("visual.") and k.endswith(".attn.in_proj_weight")])
+            [k for k in state_dict.keys() if k.startswith("visual.") and k.endswith(".attn.fc_out")])
         vision_patch_size = state_dict["visual.conv1.weight"].shape[-1]
         grid_size = round((state_dict["visual.positional_embedding"].shape[0] - 1) ** 0.5)
         image_resolution = vision_patch_size * grid_size

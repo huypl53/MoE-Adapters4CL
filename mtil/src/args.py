@@ -325,7 +325,7 @@ def parse_arguments():
     parser.add_argument("--train_chooser", action="store_true", help="train autochoose.")
 
     # LoRA Linear attention
-    parser.add_argument("--lin_lora_w", type=int, default=256, help="linear lora embedding length")
+    parser.add_argument("--lin_lora_w", type=int, default=512, help="linear lora embedding length, this shouldn't be reconfigured")
     parser.add_argument("--lin_lora_r", type=int, default=64, help="linear lora rank")
     parser.add_argument("--lin_lora_scale", type=int, default=0.2, help="linear lora scale")
 
