@@ -781,8 +781,11 @@ def build_model(state_dict: dict, args=None):
 
     if vit:
         vision_width = state_dict["visual.conv1.weight"].shape[0]
-        vision_layers = len(
+        len_vision_layers_origin = len(
+            [k for k in state_dict.keys() if k.startswith("visual.") and k.endswith(".attn.in_proj_weight")])
+        len_vision_layers_lora = len(
             [k for k in state_dict.keys() if k.startswith("visual.") and k.endswith(".attn.fc_out")])
+        vision_layers = max(len_vision_layers_lora, len_vision_layers_origin)
         vision_patch_size = state_dict["visual.conv1.weight"].shape[-1]
         grid_size = round((state_dict["visual.positional_embedding"].shape[0] - 1) ** 0.5)
         image_resolution = vision_patch_size * grid_size

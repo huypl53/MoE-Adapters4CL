@@ -10,7 +10,8 @@ def scaled_dot_product_attention(query, key, value, mask=None):
     scores = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(d_k)
 
     if mask is not None:
-        scores = scores.masked_fill(mask == 0, float("-inf"))
+        # scores = scores.masked_fill(mask == 0, float("-inf"))
+        scores = scores + mask
 
     attn_weights = F.softmax(scores, dim=-1)
     output = torch.matmul(attn_weights, value)
@@ -28,19 +29,19 @@ class MultiheadAttention(nn.Module):
         self.num_heads = num_heads
         self.head_dim = embed_size // num_heads
 
-        self.query_linear = Linear(nn.Linear(embed_size, embed_size), args)
-        self.key_linear = Linear(nn.Linear(embed_size, embed_size), args)
-        self.value_linear = Linear(nn.Linear(embed_size, embed_size), args)
+        self.query_linear = Linear(nn.Linear(embed_size, embed_size), embed_size, args)
+        self.key_linear = Linear(nn.Linear(embed_size, embed_size), embed_size, args)
+        self.value_linear = Linear(nn.Linear(embed_size, embed_size), embed_size, args)
 
-        self.fc_out = Linear(nn.Linear(embed_size, embed_size), args)
+        self.fc_out = Linear(nn.Linear(embed_size, embed_size), embed_size, args)
 
-    def forward(self, q, k, v, attn_mask=None):
-        N = q.shape[1]  # Batch size
-        query_len, key_len, value_len = q.shape[0], k.shape[0], v.shape[0]
+    def forward(self, query, key, value, attn_mask=None):
+        N = query.shape[1]  # Batch size
+        query_len, key_len, value_len = query.shape[0], key.shape[0], value.shape[0]
 
-        query = self.query_linear(q)
-        key = self.key_linear(k)
-        value = self.value_linear(v)
+        query = self.query_linear(query)
+        key = self.key_linear(key)
+        value = self.value_linear(value)
 
         query = query.view(N, query_len, self.num_heads, self.head_dim).transpose(1, 2)
         key = key.view(N, key_len, self.num_heads, self.head_dim).transpose(1, 2)

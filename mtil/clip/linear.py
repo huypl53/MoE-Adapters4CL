@@ -3,10 +3,11 @@ from .lora import LoRA
 
 
 class Linear(nn.Module):
-    def __init__(self, base_layer: nn.Module, args=None):
+    def __init__(self, base_layer: nn.Module, emb_n=512, args=None):
         super(Linear, self).__init__()
         self.base_layer_ = base_layer
-        lora_n_emd = args.lin_lora_w
+        lora_n_emd = emb_n
+        # lora_n_emd = args.lin_lora_w
         lora_rank = args.lin_lora_r
         lora_scale = args.lin_lora_scale
         self.lora = LoRA(
