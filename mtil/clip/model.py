@@ -1,15 +1,15 @@
-from collections import OrderedDict
+import json
+import os
+from collections import Counter, OrderedDict
 from typing import Tuple, Union
 
-import os
-import json
 import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import nn
-from .adapter import Adapter
 from torch.distributions.normal import Normal
-from collections import Counter
+
+from .adapter import Adapter
 
 val_task_id = None
 
@@ -299,7 +299,7 @@ class ResidualAttentionBlock(nn.Module):
         self.ln_2 = LayerNorm(d_model)
         self.ln_3 = LayerNorm(d_model)
         self.attn_mask = attn_mask
-
+        self.shared_ffn = nn.Linear(d_model, d_model)
 
         self.layer = i
         self.register_buffer("mean", torch.tensor([0.0]))
@@ -496,7 +496,7 @@ class ResidualAttentionBlock(nn.Module):
                     expert_inputs = dispatcher.dispatch(x.permute(1, 0, 2).view(x.shape[1], -1))
 
                     expert_outputs = [self.adaptmlp_list[i](expert_inputs[i].view(expert_inputs[i].shape[0],
-                                        x.shape[0],x.shape[2]).to(x), add_residual=False) for i in range(self.experts_num)]  # 11个experts 一个router
+                                        x.shape[0],x.shape[2]).to(x), add_residual=True, residual=self.shared_ffn) for i in range(self.experts_num)]  # 11个experts 一个router
 
                     i = 0
                     while i < len(expert_outputs):
@@ -517,7 +517,7 @@ class ResidualAttentionBlock(nn.Module):
                     dispatcher = SparseDispatcher(self.experts_num, gates)
                     expert_inputs = dispatcher.dispatch(x.permute(1, 0, 2).view(x.shape[1], -1))  #
                     expert_outputs = [self.adaptmlp_list[i](expert_inputs[i].view(expert_inputs[i].shape[0],
-                                x.shape[0], x.shape[2]).to(x), add_residual=False) for i in range(self.experts_num)]  # 11 experts 1 router
+                                x.shape[0], x.shape[2]).to(x), add_residual=True, residual=self.shared_ffn) for i in range(self.experts_num)]  # 11 experts 1 router
                     i = 0
                     while i < len(expert_outputs):
                         if expert_outputs[i].shape[0] == 0:
@@ -690,6 +690,7 @@ class CLIP(nn.Module):
             nn.init.normal_(block.attn.out_proj.weight, std=proj_std)
             nn.init.normal_(block.mlp.c_fc.weight, std=fc_std)
             nn.init.normal_(block.mlp.c_proj.weight, std=proj_std)
+            nn.init.normal_(block.shared_ffn.weight, std=fc_std)
 
         if self.text_projection is not None:
             nn.init.normal_(self.text_projection, std=self.transformer.width ** -0.5)
