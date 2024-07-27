@@ -4,6 +4,7 @@
 # --------------------------------------------------------
 
 import math
+
 import torch
 import torch.nn as nn
 
@@ -48,7 +49,9 @@ class Adapter(nn.Module):
 
     def forward(self, x, add_residual=True, residual=None):
 
+        # import pdb;pdb.set_trace()
         residual = x if residual is None else residual
+        residual = residual[ :x.shape[0],...]
         if self.adapter_layernorm_option == 'in': #  none
             x = self.adapter_layer_norm_before(x)
 

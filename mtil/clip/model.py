@@ -1,15 +1,15 @@
-import json
-import os
-from collections import Counter, OrderedDict
+from collections import OrderedDict
 from typing import Tuple, Union
 
+import os
+import json
 import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import nn
-from torch.distributions.normal import Normal
-
 from .adapter import Adapter
+from torch.distributions.normal import Normal
+from collections import Counter
 
 val_task_id = None
 
@@ -494,10 +494,11 @@ class ResidualAttentionBlock(nn.Module):
 
                     dispatcher = SparseDispatcher(self.experts_num, gates)
                     expert_inputs = dispatcher.dispatch(x.permute(1, 0, 2).view(x.shape[1], -1))
+                    
+                    residual=self.shared_ffn(x).view(-1, x.shape[0], x.shape[2])
 
                     expert_outputs = [self.adaptmlp_list[i](expert_inputs[i].view(expert_inputs[i].shape[0],
-                                        x.shape[0],x.shape[2]).to(x), add_residual=True, residual=self.shared_ffn) for i in range(self.experts_num)]  # 11个experts 一个router
-
+                                        x.shape[0],x.shape[2]).to(x), add_residual=True, residual=residual) for i in range(self.experts_num)]  # 11个experts 一个router
                     i = 0
                     while i < len(expert_outputs):
                         if expert_outputs[i].shape[0] == 0 :
@@ -514,10 +515,11 @@ class ResidualAttentionBlock(nn.Module):
                     gates, load = self.noisy_top_k_gating(x_re, self.is_train, self.router1,
                                                           self.w_noise)
 
+                    residual=self.shared_ffn(x).view(-1, x.shape[0], x.shape[2])
                     dispatcher = SparseDispatcher(self.experts_num, gates)
-                    expert_inputs = dispatcher.dispatch(x.permute(1, 0, 2).view(x.shape[1], -1))  #
                     expert_outputs = [self.adaptmlp_list[i](expert_inputs[i].view(expert_inputs[i].shape[0],
-                                x.shape[0], x.shape[2]).to(x), add_residual=True, residual=self.shared_ffn) for i in range(self.experts_num)]  # 11 experts 1 router
+                                x.shape[0], x.shape[2]).to(x), add_residual=True, residual=residual) for i in range(self.experts_num)]  # 11 experts 1 router
+             
                     i = 0
                     while i < len(expert_outputs):
                         if expert_outputs[i].shape[0] == 0:
