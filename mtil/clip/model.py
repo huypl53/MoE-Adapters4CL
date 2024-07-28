@@ -300,6 +300,9 @@ class ResidualAttentionBlock(nn.Module):
         self.ln_3 = LayerNorm(d_model)
         self.attn_mask = attn_mask
         self.shared_ffn = nn.Linear(d_model, d_model)
+        if args.task_id > 1:
+            self.shared_ffn.requires_grad = False
+
 
         self.layer = i
         self.register_buffer("mean", torch.tensor([0.0]))
