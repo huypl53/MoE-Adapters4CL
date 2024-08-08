@@ -1,15 +1,15 @@
-from collections import OrderedDict
+import json
+import os
+from collections import Counter, OrderedDict
 from typing import Tuple, Union
 
-import os
-import json
 import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import nn
-from .adapter import Adapter
 from torch.distributions.normal import Normal
-from collections import Counter
+
+from .adapter import Adapter
 
 val_task_id = None
 
@@ -495,9 +495,17 @@ class ResidualAttentionBlock(nn.Module):
                     dispatcher = SparseDispatcher(self.experts_num, gates)
                     expert_inputs = dispatcher.dispatch(x.permute(1, 0, 2).view(x.shape[1], -1))
 
-                    expert_outputs = [self.adaptmlp_list[i](expert_inputs[i].view(expert_inputs[i].shape[0],
-                                        x.shape[0],x.shape[2]).to(x), add_residual=False) for i in range(self.experts_num)]  # 11个experts 一个router
+                    # expert_outputs = [self.adaptmlp_list[i](expert_inputs[i].view(expert_inputs[i].shape[0],
+                    #                     x.shape[0],x.shape[2]).to(x), add_residual=False) for i in range(self.experts_num)]  # 11个experts 一个router
 
+                    expert_outputs = []
+                    for i in range(self.experts_num):
+                        expert_input = expert_inputs[i].view(expert_inputs[i].shape[0],
+                                        x.shape[0],x.shape[2]).to(x)
+                        lora_output = self.adaptmlp_list[i](expert_input, add_residual=False)
+                        shared_ffn_output = self.mlp(expert_input)
+
+                        expert_outputs.append(lora_output + shared_ffn_output)
                     i = 0
                     while i < len(expert_outputs):
                         if expert_outputs[i].shape[0] == 0 :
