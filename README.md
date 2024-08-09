@@ -64,6 +64,10 @@ Example:
 1. ```cd cil```
 2. ```bash run_cifar100-2-2.sh ```
 
+Train then save all outputs to a file
+```bash
+bash mtil/scripts/train/train_full_shot_router11_experts22_1000iters.sh 2>&1 | tee train-adapters-"$(date +%y%m%d_%H%M%S)".log
+```
 ## Citation
 ```
 @InProceedings{yu2024boosting,
