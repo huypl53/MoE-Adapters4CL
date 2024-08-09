@@ -4,23 +4,29 @@
 # --------------------------------------------------------
 
 import math
+
 import torch
 import torch.nn as nn
 
+from .fasterkan import FasterKAN as KAN
+
 
 class Adapter(nn.Module):
-    def __init__(self,
-                 d_model=None,
-                 bottleneck=None,
-                 dropout=0.0,
-                 init_option="lora",
-                 adapter_scalar="1.0",
-                 adapter_layernorm_option="in"):
+    def __init__(
+        self,
+        d_model=None,
+        bottleneck=None,
+        dropout=0.0,
+        init_option="lora",
+        adapter_scalar="1.0",
+        adapter_layernorm_option="in",
+        text_or_image="image",
+    ):
         super().__init__()
         self.n_embd = d_model if d_model is None else d_model
         self.down_size = bottleneck
 
-        #_before
+        # _before
         self.adapter_layernorm_option = adapter_layernorm_option
 
         self.adapter_layer_norm_before = None
@@ -37,6 +43,11 @@ class Adapter(nn.Module):
         self.up_proj = nn.Linear(self.down_size, self.n_embd)
 
         self.dropout = dropout
+        self.text_or_image = text_or_image
+        if self.text_or_image == "image":
+            dim = d_model  # 768
+            hdim_kan = 192
+            self.kan = KAN([dim, hdim_kan, dim])
         if init_option == "bert":
             raise NotImplementedError
         elif init_option == "lora":
@@ -49,8 +60,12 @@ class Adapter(nn.Module):
     def forward(self, x, add_residual=True, residual=None):
 
         residual = x if residual is None else residual
-        if self.adapter_layernorm_option == 'in': #  none
+        kan_output = None
+        if self.adapter_layernorm_option == "in":  #  none
             x = self.adapter_layer_norm_before(x)
+
+        if self.text_or_image == "image":
+            kan_output = self.kan(x)
 
         down = self.down_proj(x)
         down = self.non_linear_func(down)
@@ -59,7 +74,9 @@ class Adapter(nn.Module):
 
         up = up * self.scale
 
-        if self.adapter_layernorm_option == 'out': #  none
+        if kan_output is not None:
+            up = up + kan_output
+        if self.adapter_layernorm_option == "out":  #  none
             up = self.adapter_layer_norm_before(up)
 
         if add_residual:  # False

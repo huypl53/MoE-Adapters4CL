@@ -1,15 +1,15 @@
-from collections import OrderedDict
+import json
+import os
+from collections import Counter, OrderedDict
 from typing import Tuple, Union
 
-import os
-import json
 import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import nn
-from .adapter import Adapter
 from torch.distributions.normal import Normal
-from collections import Counter
+
+from .adapter import Adapter
 
 val_task_id = None
 
@@ -300,6 +300,7 @@ class ResidualAttentionBlock(nn.Module):
         self.ln_3 = LayerNorm(d_model)
         self.attn_mask = attn_mask
 
+        self.kan = None
 
         self.layer = i
         self.register_buffer("mean", torch.tensor([0.0]))
@@ -341,6 +342,7 @@ class ResidualAttentionBlock(nn.Module):
                                                 init_option='lora',
                                                 adapter_scalar=0.1,
                                                 adapter_layernorm_option='none',
+                                                text_or_image = text_or_image
                                                 )
                         self.adaptmlp_list.append(self.adaptmlp)
                 else:  # one router for all task
@@ -351,14 +353,14 @@ class ResidualAttentionBlock(nn.Module):
                                                 init_option='lora',
                                                 adapter_scalar=0.1,
                                                 adapter_layernorm_option='none',
-                                                )
+                                                text_or_image = text_or_image        )
                         self.adaptmlp_list.append(self.adaptmlp)
             else:  # without moe
                 self.adaptmlp = Adapter(d_model=d_model, dropout=0.1, bottleneck=self.ffn_num,
                                         init_option='lora',
                                         adapter_scalar=0.1,
                                         adapter_layernorm_option='none',
-                                        )
+                                        text_or_image = text_or_image        )
 
 
     def attention(self, x: torch.Tensor):
