@@ -45,8 +45,10 @@ class Adapter(nn.Module):
         self.dropout = dropout
         self.text_or_image = text_or_image
         if self.text_or_image == "image":
+            # if True:
             dim = d_model  # 768
-            hdim_kan = 192
+            # hdim_kan = 192 // 2
+            hdim_kan = 64
             self.kan = KAN([dim, hdim_kan, dim])
         if init_option == "bert":
             raise NotImplementedError
@@ -64,8 +66,11 @@ class Adapter(nn.Module):
         if self.adapter_layernorm_option == "in":  #  none
             x = self.adapter_layer_norm_before(x)
 
-        if self.text_or_image == "image":
-            kan_output = self.kan(x)
+        if self.text_or_image == "image" and x.shape[0] > 0:
+            # if True: # and x.shape[0] > 0:
+            kan_output = self.kan(x.reshape(-1, x.shape[-1])).reshape(
+                x.shape[0], x.shape[1], x.shape[2]
+            )
 
         down = self.down_proj(x)
         down = self.non_linear_func(down)

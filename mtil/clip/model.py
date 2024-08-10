@@ -300,8 +300,6 @@ class ResidualAttentionBlock(nn.Module):
         self.ln_3 = LayerNorm(d_model)
         self.attn_mask = attn_mask
 
-        self.kan = None
-
         self.layer = i
         self.register_buffer("mean", torch.tensor([0.0]))
         self.register_buffer("std", torch.tensor([1.0]))
