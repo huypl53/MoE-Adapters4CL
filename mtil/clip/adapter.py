@@ -38,49 +38,55 @@ class Adapter(nn.Module):
         else:
             self.scale = float(adapter_scalar)
 
-        self.down_proj = nn.Linear(self.n_embd, 64)
-        self.non_linear_func = nn.ReLU()
-        self.up_proj = nn.Linear(self.down_size, self.n_embd)
-
         self.dropout = dropout
         self.text_or_image = text_or_image
         if self.text_or_image == "image":
-            # if True:
             dim = d_model  # 768
             # hdim_kan = 192 // 2
             hdim_kan = 64
-            self.kan = KAN([dim, hdim_kan, dim])
-        if init_option == "bert":
-            raise NotImplementedError
-        elif init_option == "lora":
-            with torch.no_grad():
-                nn.init.kaiming_uniform_(self.down_proj.weight, a=math.sqrt(5))
-                nn.init.zeros_(self.up_proj.weight)
-                nn.init.zeros_(self.down_proj.bias)
-                nn.init.zeros_(self.up_proj.bias)
+            # self.kan = KAN([dim, hdim_kan, dim])
+            self.down_proj = KAN([dim, hdim_kan, dim])
+            self.non_linear_func = nn.ReLU()
+            self.up_proj = KAN([dim, hdim_kan, dim])
+        else:
+            self.down_proj = nn.Linear(self.n_embd, 64)
+            self.non_linear_func = nn.ReLU()
+            self.up_proj = nn.Linear(self.down_size, self.n_embd)
+
+            if init_option == "bert":
+                raise NotImplementedError
+            elif init_option == "lora":
+                with torch.no_grad():
+                    nn.init.kaiming_uniform_(self.down_proj.weight, a=math.sqrt(5))
+                    nn.init.zeros_(self.up_proj.weight)
+                    nn.init.zeros_(self.down_proj.bias)
+                    nn.init.zeros_(self.up_proj.bias)
 
     def forward(self, x, add_residual=True, residual=None):
 
         residual = x if residual is None else residual
-        kan_output = None
         if self.adapter_layernorm_option == "in":  #  none
             x = self.adapter_layer_norm_before(x)
 
-        if self.text_or_image == "image" and x.shape[0] > 0:
-            # if True: # and x.shape[0] > 0:
-            kan_output = self.kan(x.reshape(-1, x.shape[-1])).reshape(
-                x.shape[0], x.shape[1], x.shape[2]
-            )
+        if self.text_or_image == "image":
+            if x.shape[0] > 0:
+                down = self.down_proj(x.reshape(-1, x.shape[-1])).reshape_as(x)
+                down = self.non_linear_func(down)
+                down = nn.functional.dropout(
+                    down, p=self.dropout, training=self.training
+                )
+                up = self.up_proj(down.reshape(-1, down.shape[-1])).reshape_as(x)
+            else:
+                up = x
 
-        down = self.down_proj(x)
-        down = self.non_linear_func(down)
-        down = nn.functional.dropout(down, p=self.dropout, training=self.training)
-        up = self.up_proj(down)
+        else:
+            down = self.down_proj(x)
+            down = self.non_linear_func(down)
+            down = nn.functional.dropout(down, p=self.dropout, training=self.training)
+            up = self.up_proj(down)
 
         up = up * self.scale
 
-        if kan_output is not None:
-            up = up + kan_output
         if self.adapter_layernorm_option == "out":  #  none
             up = self.adapter_layer_norm_before(up)
 
