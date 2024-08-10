@@ -43,7 +43,7 @@ class Adapter(nn.Module):
         if self.text_or_image == "image":
             dim = d_model  # 768
             # hdim_kan = 192 // 2
-            hdim_kan = 64
+            hdim_kan = 16
             # self.kan = KAN([dim, hdim_kan, dim])
             self.down_proj = KAN([dim, hdim_kan, dim])
             self.non_linear_func = nn.ReLU()
