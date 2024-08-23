@@ -209,6 +209,11 @@ def finetune(args):
                 file.write(item2 + "\n")
                 file.write(item3 + "\n")
                 file.write(item4 + "\n")
+                # kan applied to image adapters only
+                for name, param in model.module.visual.transformer.resblocks[i].adaptmlp_list[j].named_parameters():
+                    if 'kan' in name:
+                        file.write(name + "\n")
+
             for k in range(len(top_indices_t)):
                 item1 = 'transformer.resblocks.{}.adaptmlp_list.{}.down_proj.weight'.format(i, top_indices_t[k])
                 item2 = 'transformer.resblocks.{}.adaptmlp_list.{}.down_proj.bias'.format(i, top_indices_t[k])
@@ -218,6 +223,10 @@ def finetune(args):
                 file.write(item2 + "\n")
                 file.write(item3 + "\n")
                 file.write(item4 + "\n")
+                # placeholder now
+                # for name, param in model.module.transformer.resblocks[i].adaptmlp_list[j].named_parameters():
+                #     if 'kan' in name:
+                #         file.write(name + "\n")
         print('=======================bingo!=============================')
 
 
