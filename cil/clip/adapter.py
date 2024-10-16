@@ -16,7 +16,9 @@ class Adapter(nn.Module):
                  dropout=0.0,
                  init_option="lora",
                  adapter_scalar="1.0",
-                 adapter_layernorm_option="in"):
+                 adapter_layernorm_option="in",
+                 text_or_image="image",
+):
         super().__init__()
         self.n_embd = d_model if d_model is None else d_model
         self.down_size = bottleneck
@@ -33,10 +35,13 @@ class Adapter(nn.Module):
         else:
             self.scale = float(adapter_scalar)
 
-        dim = d_model  # 768
-        # hdim_kan = 192 // 2
-        hdim_kan = 64
-        self.kan = KAN([dim, hdim_kan, dim])
+        self.text_or_image = text_or_image
+        if self.text_or_image == "image":
+            # if True:
+            dim = d_model  # 768
+            # hdim_kan = 192 // 2
+            hdim_kan = 64
+            self.kan = KAN([dim, hdim_kan, dim])
 
         self.down_proj = nn.Linear(self.n_embd, 64)
         self.non_linear_func = nn.ReLU()
@@ -55,13 +60,15 @@ class Adapter(nn.Module):
     def forward(self, x, add_residual=True, residual=None):
 
         residual = x if residual is None else residual
+        kan_output = None
         if self.adapter_layernorm_option == 'in': #  none
             x = self.adapter_layer_norm_before(x)
 
-        kan_output = None
-        kan_output = self.kan(x.reshape(-1, x.shape[-1])).reshape(
-            x.shape[0], x.shape[1], x.shape[2]
-        )
+        if self.text_or_image == "image" and x.shape[0] > 0:
+            # if True: # and x.shape[0] > 0:
+            kan_output = self.kan(x.reshape(-1, x.shape[-1])).reshape(
+                x.shape[0], x.shape[1], x.shape[2]
+            )
 
         down = self.down_proj(x)
         down = self.non_linear_func(down)

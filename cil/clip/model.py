@@ -311,6 +311,7 @@ class ResidualAttentionBlock(nn.Module):
                                     init_option='lora',
                                     adapter_scalar=0.1,
                                     adapter_layernorm_option='none',
+                                    text_or_image=text_or_image
                                     )
             self.adaptmlp_list.append(self.adaptmlp)
 
