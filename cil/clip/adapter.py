@@ -7,6 +7,7 @@ import math
 import torch
 import torch.nn as nn
 
+from .fasterkan import FasterKAN as KAN
 
 class Adapter(nn.Module):
     def __init__(self,
@@ -32,6 +33,11 @@ class Adapter(nn.Module):
         else:
             self.scale = float(adapter_scalar)
 
+        dim = d_model  # 768
+        # hdim_kan = 192 // 2
+        hdim_kan = 64
+        self.kan = KAN([dim, hdim_kan, dim])
+
         self.down_proj = nn.Linear(self.n_embd, 64)
         self.non_linear_func = nn.ReLU()
         self.up_proj = nn.Linear(self.down_size, self.n_embd)
@@ -52,12 +58,20 @@ class Adapter(nn.Module):
         if self.adapter_layernorm_option == 'in': #  none
             x = self.adapter_layer_norm_before(x)
 
+        kan_output = None
+        kan_output = self.kan(x.reshape(-1, x.shape[-1])).reshape(
+            x.shape[0], x.shape[1], x.shape[2]
+        )
+
         down = self.down_proj(x)
         down = self.non_linear_func(down)
         down = nn.functional.dropout(down, p=self.dropout, training=self.training)
         up = self.up_proj(down)
 
         up = up * self.scale
+
+        if kan_output is not None:
+            up = up + kan_output
 
         if self.adapter_layernorm_option == 'out': #  none
             up = self.adapter_layer_norm_before(up)
