@@ -40,7 +40,7 @@ class Adapter(nn.Module):
             # if True:
             dim = d_model  # 768
             # hdim_kan = 192 // 2
-            hdim_kan = 64
+            hdim_kan = 16
             self.kan = KAN([dim, hdim_kan, dim])
 
         self.down_proj = nn.Linear(self.n_embd, 64)
