@@ -73,6 +73,7 @@ class Adapter(nn.Module):
                 x.shape[0], x.shape[1], x.shape[2]
             )
             kan_output = self.kan_layer_norm(kan_output)
+            kan_output = nn.functional.dropout(kan_output, p=self.dropout, training=self.training)
 
         down = self.down_proj(x)
         down = self.non_linear_func(down)
