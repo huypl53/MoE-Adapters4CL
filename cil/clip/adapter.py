@@ -29,6 +29,9 @@ class Adapter(nn.Module):
         self.adapter_layer_norm_before = None
         if adapter_layernorm_option == "in" or adapter_layernorm_option == "out":
             self.adapter_layer_norm_before = nn.LayerNorm(self.n_embd)
+        
+        
+        self.kan_layer_norm = nn.LayerNorm(self.n_embd)
 
         if adapter_scalar == "learnable_scalar":
             self.scale = nn.Parameter(torch.ones(1))
@@ -69,7 +72,7 @@ class Adapter(nn.Module):
             kan_output = self.kan(x.reshape(-1, x.shape[-1])).reshape(
                 x.shape[0], x.shape[1], x.shape[2]
             )
-            kan_output = nn.functional.dropout(kan_output, p=self.dropout, training=self.training)
+            kan_output = self.kan_layer_norm(kan_output)
 
         down = self.down_proj(x)
         down = self.non_linear_func(down)
