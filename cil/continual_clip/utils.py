@@ -93,6 +93,19 @@ def torch_save(classifier, save_path):
     # with open(save_path, 'wb') as f:
     #     pickle.dump(classifier.cpu(), f)
 
+def torch_save_whole(model, save_path):
+    if os.path.dirname(save_path) != '':
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    torch.save(model.cpu(), save_path)
+
+
+def torch_load_whole(save_path, device=None):
+    model = torch.load(save_path)
+    if device is not None:
+        model = model.to(device)
+    return model
+
+
 
 def torch_load(classifier, save_path, device=None):
     checkpoint = torch.load(save_path)
