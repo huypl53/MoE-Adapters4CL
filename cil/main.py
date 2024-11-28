@@ -1,34 +1,32 @@
-
-import os
 import json
-from merging.task_vectors import TaskVector, merge_max_abs, merge_rnd_mix
-import hydra
 import logging
-from omegaconf import DictConfig
-
-from tqdm import tqdm
-
-import torch
+import os
 import statistics
-from torch.utils.data import DataLoader
-from continuum.metrics import Logger
-
-from continual_clip import utils
-from continual_clip.models import load_model
-from continual_clip.datasets import build_cl_scenarios
 from pathlib import Path
 
+import hydra
+import torch
+from continual_clip import utils
+from continual_clip.datasets import build_cl_scenarios
+from continual_clip.models import load_model
+from continuum.metrics import Logger
+from merging.task_vectors import TaskVector, merge_max_abs, merge_rnd_mix
+from omegaconf import DictConfig
+from torch.utils.data import DataLoader
+from tqdm import tqdm
+
 adapter_paths = []
-eval_dataset, classes_names  = None, None
+eval_dataset, classes_names = None, None
 
 
-@hydra.main(config_path=None, config_name=None, version_base="1.1") 
+@hydra.main(config_path=None, config_name=None, version_base="1.1")
 def main(cfg: DictConfig) -> None:
     continual_clip(cfg)
     search_evaluate_merging()
-    
+
+
 def continual_clip(cfg: DictConfig) -> None:
-    global adapter_paths, eval_dataset, classes_names 
+    global adapter_paths, eval_dataset, classes_names
     adapter_paths = []
 
     cfg.workdir = utils.get_workdir(path=os.getcwd())
@@ -37,7 +35,7 @@ def continual_clip(cfg: DictConfig) -> None:
     utils.save_config(cfg)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     cfg.class_order = utils.get_class_order(os.path.join(cfg.workdir, cfg.class_order))
-    model  = load_model(cfg, device)
+    model = load_model(cfg, device)
 
     eval_dataset, classes_names = build_cl_scenarios(
         cfg, is_train=False, transforms=model.transforms
@@ -50,9 +48,8 @@ def continual_clip(cfg: DictConfig) -> None:
     # print('train_classes_names', train_classes_names)
     model.classes_names = classes_names
 
-    
     log_dir = Path(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir)
-    with open(cfg.log_path, 'w+') as f: 
+    with open(cfg.log_path, "w+") as f:
         pass
 
     acc_list = []
@@ -64,45 +61,64 @@ def continual_clip(cfg: DictConfig) -> None:
         # if task_id == 2: break
         logging.info(f"Evaluation for task {task_id} has started.")
         # breakpoint()
-        model.adaptation(task_id, cfg, train_dataset, train_classes_names)  # task id 已经传入model
+        model.adaptation(
+            task_id, cfg, train_dataset, train_classes_names
+        )  # task id 已经传入model
 
-        eval_loader = DataLoader(eval_dataset[:task_id + 1], batch_size=64)
+        eval_loader = DataLoader(eval_dataset[: task_id + 1], batch_size=64)
         # breakpoint()
         for inputs, targets, task_ids in tqdm(eval_loader):
             inputs, targets = inputs.to(device), targets.to(device)
             outputs = model(inputs, task_ids)
-            metric_logger.add([outputs.cpu().argmax(dim=1), targets.cpu(), task_ids], subset="test")
+            metric_logger.add(
+                [outputs.cpu().argmax(dim=1), targets.cpu(), task_ids], subset="test"
+            )
 
         acc_list.append(100 * metric_logger.accuracy)
-        with open(cfg.log_path, 'a+') as f:
-            f.write(json.dumps({
-                'task': task_id,
-                'acc': round(100 * metric_logger.accuracy, 2),
-                'avg_acc': round(100 * metric_logger.average_incremental_accuracy, 2),
-                'forgetting': round(100 * metric_logger.forgetting, 6),
-                'acc_per_task': [round(100 * acc_t, 2) for acc_t in metric_logger.accuracy_per_task],
-                'bwt': round(100 * metric_logger.backward_transfer, 2),
-                'fwt': round(100 * metric_logger.forward_transfer, 2),
-            }) + '\n')
+        with open(cfg.log_path, "a+") as f:
+            f.write(
+                json.dumps(
+                    {
+                        "task": task_id,
+                        "acc": round(100 * metric_logger.accuracy, 2),
+                        "avg_acc": round(
+                            100 * metric_logger.average_incremental_accuracy, 2
+                        ),
+                        "forgetting": round(100 * metric_logger.forgetting, 6),
+                        "acc_per_task": [
+                            round(100 * acc_t, 2)
+                            for acc_t in metric_logger.accuracy_per_task
+                        ],
+                        "bwt": round(100 * metric_logger.backward_transfer, 2),
+                        "fwt": round(100 * metric_logger.forward_transfer, 2),
+                    }
+                )
+                + "\n"
+            )
             metric_logger.end_task()
-        
-        path = log_dir / f'adapter-{task_id:03d}.pth'
+
+        path = log_dir / f"adapter-{task_id:03d}.pth"
         adapter_paths.append(str(path))
-        print(f'Save model to {str(path)}')
+        print(f"Save model to {str(path)}")
         utils.torch_save_whole(model, str(path))
-        
+
         # assert 1 == 2
-    with open(cfg.log_path, 'a+') as f:
-        f.write(json.dumps({
-            'last': round(acc_list[-1], 2), 
-            'avg': round(statistics.mean(acc_list), 2)
-        }) + '\n')
+    with open(cfg.log_path, "a+") as f:
+        f.write(
+            json.dumps(
+                {
+                    "last": round(acc_list[-1], 2),
+                    "avg": round(statistics.mean(acc_list), 2),
+                }
+            )
+            + "\n"
+        )
 
 
 def eval_single_dataset(model, log_file):
-    
-    global eval_dataset, classes_names 
-    print('-------Eval on MagMax merged model--------')
+
+    global eval_dataset, classes_names
+    print("-------Eval on MagMax merged model--------")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # eval_dataset, classes_names = build_cl_scenarios(
     #     cfg, is_train=False, transforms=model.transforms
@@ -120,71 +136,88 @@ def eval_single_dataset(model, log_file):
         # breakpoint()
         # model.adaptation(task_id, cfg, train_dataset, train_classes_names)  # task id 已经传入model
 
-        eval_loader = DataLoader(eval_dataset[:task_id + 1], batch_size=64)
+        eval_loader = DataLoader(eval_dataset[: task_id + 1], batch_size=64)
         # breakpoint()
         for inputs, targets, task_ids in tqdm(eval_loader):
             inputs, targets = inputs.to(device), targets.to(device)
             outputs = model(inputs, task_ids)
-            metric_logger.add([outputs.cpu().argmax(dim=1), targets.cpu(), task_ids], subset="test")
+            metric_logger.add(
+                [outputs.cpu().argmax(dim=1), targets.cpu(), task_ids], subset="test"
+            )
 
         acc_list.append(100 * metric_logger.accuracy)
-        with open(log_file, 'a+') as f:
-            f.write(json.dumps({
-                'task': task_id,
-                'acc': round(100 * metric_logger.accuracy, 2),
-                'avg_acc': round(100 * metric_logger.average_incremental_accuracy, 2),
-                'forgetting': round(100 * metric_logger.forgetting, 6),
-                'acc_per_task': [round(100 * acc_t, 2) for acc_t in metric_logger.accuracy_per_task],
-                'bwt': round(100 * metric_logger.backward_transfer, 2),
-                'fwt': round(100 * metric_logger.forward_transfer, 2),
-            }) + '\n')
+        with open(log_file, "a+") as f:
+            f.write(
+                json.dumps(
+                    {
+                        "task": task_id,
+                        "acc": round(100 * metric_logger.accuracy, 2),
+                        "avg_acc": round(
+                            100 * metric_logger.average_incremental_accuracy, 2
+                        ),
+                        "forgetting": round(100 * metric_logger.forgetting, 6),
+                        "acc_per_task": [
+                            round(100 * acc_t, 2)
+                            for acc_t in metric_logger.accuracy_per_task
+                        ],
+                        "bwt": round(100 * metric_logger.backward_transfer, 2),
+                        "fwt": round(100 * metric_logger.forward_transfer, 2),
+                    }
+                )
+                + "\n"
+            )
             metric_logger.end_task()
-        
-    with open(str(log_file), 'a+') as f:
-        f.write(json.dumps({
-            'last': round(acc_list[-1], 2), 
-            'avg': round(statistics.mean(acc_list), 2)
-        }) + '\n')
-            
+
+    with open(str(log_file), "a+") as f:
+        f.write(
+            json.dumps(
+                {
+                    "last": round(acc_list[-1], 2),
+                    "avg": round(statistics.mean(acc_list), 2),
+                }
+            )
+            + "\n"
+        )
 
 
 def search_evaluate_merging():
     global adapter_paths
     n_splits = len(adapter_paths)
-    
+
     # TODO: choose better pretrained
     pretrained_checkpoint = adapter_paths[-1]
-    task_vectors = [TaskVector(pretrained_checkpoint, ckpt) for ckpt in adapter_paths[:-1]]
-    
+    task_vectors = [
+        TaskVector(pretrained_checkpoint, ckpt) for ckpt in adapter_paths[:-1]
+    ]
+
     funcs_and_coeffs = [
         # (merge_rnd_mix, np.linspace(0.5, 1.5, num=n_coeffs+1)[1:]),
         # (merge_max_abs, np.linspace(0.0, 1.0, num=n_coeffs+1)[1:]),
         # (sum, np.linspace(0.0, 2.0/n_splits, num=n_coeffs+1)[1:]),
         (merge_rnd_mix, [1.0]),
         (merge_max_abs, [0.5]),
-        (sum, [1.0/( n_splits - 1)]),
+        (sum, [1.0 / (n_splits - 1)]),
     ]
 
-    log_file = 'metric-magmax.json'
+    log_file = "metric-magmax.json"
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     for f, coeffs in funcs_and_coeffs:
-        print(f"\nMerging with function: {f.__name__}")
-        with open(log_file, 'a+') as f:
-            f.write(f"\nMerging with function: {f.__name__}" + "\n")
+        func_name = f.__name__
+        print(f"\nMerging with function: {func_name}")
+        with open(log_file, "a+") as f:
+            f.write(f"\nMerging with function: {func_name}" + "\n")
         merged_tv = f(task_vectors)
-        
+
         # Apply the resulting task vector
         results = {}
         for scaling_coef in coeffs:
             print(f"Scaling coeff: {scaling_coef}")
-            with open(log_file, 'a+') as f:
+            with open(log_file, "a+") as f:
                 f.write(f"Scaling coeff: {scaling_coef}" + "\n")
             model = merged_tv.apply_to(pretrained_checkpoint, scaling_coef=scaling_coef)
             model.to(device)
             # Evaluate
             eval_single_dataset(model, log_file)
-        
-    
 
 
 if __name__ == "__main__":
