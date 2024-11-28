@@ -204,16 +204,16 @@ def search_evaluate_merging():
     for f, coeffs in funcs_and_coeffs:
         func_name = f.__name__
         print(f"\nMerging with function: {func_name}")
-        with open(log_file, "a+") as f:
-            f.write(f"\nMerging with function: {func_name}" + "\n")
+        with open(log_file, "a+") as f_log:
+            f_log.write(f"\nMerging with function: {func_name}" + "\n")
         merged_tv = f(task_vectors)
 
         # Apply the resulting task vector
         results = {}
         for scaling_coef in coeffs:
             print(f"Scaling coeff: {scaling_coef}")
-            with open(log_file, "a+") as f:
-                f.write(f"Scaling coeff: {scaling_coef}" + "\n")
+            with open(log_file, "a+") as f_log:
+                f_log.write(f"Scaling coeff: {scaling_coef}" + "\n")
             model = merged_tv.apply_to(pretrained_checkpoint, scaling_coef=scaling_coef)
             model.to(device)
             # Evaluate
