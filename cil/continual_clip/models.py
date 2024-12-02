@@ -38,7 +38,9 @@ class ClassIncremental(nn.Module):
             logits_per_image, _ = self.model(image, self.text_tokens, 0, is_train=False)
             probs = logits_per_image.softmax(dim=-1)
         return probs
-
+    
+    def update_class_history(self, task_id):
+        self.current_class_names = [name for c in [ get_class_names(self.classes_names, self.class_ids_per_task[i]) for i in range(task_id + 1)] for name in c]
     def adaptation(self, task_id, cfg, train_dataset, train_classes_names):
         self.current_class_names += get_class_names(self.classes_names, self.class_ids_per_task[task_id])
         self.text_tokens = clip.tokenize(

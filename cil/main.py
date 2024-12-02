@@ -115,7 +115,7 @@ def continual_clip(cfg: DictConfig) -> None:
         )
 
 
-def eval_single_dataset(model, log_file, ignore_task_id):
+def eval_single_dataset(model, log_file, ignore_task_ids):
 
     global eval_dataset, classes_names
     print("-------Eval on MagMax merged model--------")
@@ -130,7 +130,7 @@ def eval_single_dataset(model, log_file, ignore_task_id):
     metric_logger = Logger(list_subsets=["test"])
 
     for task_id, _ in enumerate(eval_dataset):
-        if task_id == ignore_task_id: continue
+        if task_id in ignore_task_ids: continue
         # breakpoint()
         # if task_id == 2: break
         logging.info(f"MagMax Evaluation for task {task_id} has started.")
@@ -138,6 +138,7 @@ def eval_single_dataset(model, log_file, ignore_task_id):
         # model.adaptation(task_id, cfg, train_dataset, train_classes_names)  # task id 已经传入model
 
         eval_loader = DataLoader(eval_dataset[: task_id + 1], batch_size=64)
+        model.update_class_history(task_id)
         # breakpoint()
         for inputs, targets, task_ids in tqdm(eval_loader):
             inputs, targets = inputs.to(device), targets.to(device)
@@ -219,7 +220,7 @@ def search_evaluate_merging():
             model = merged_tv.apply_to(pretrained_checkpoint, scaling_coef=scaling_coef)
             model.to(device)
             # Evaluate
-            eval_single_dataset(model, log_file, ignore_task_id)
+            eval_single_dataset(model, log_file, [ ignore_task_id ])
 
 
 if __name__ == "__main__":
