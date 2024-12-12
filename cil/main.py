@@ -130,7 +130,8 @@ def eval_single_dataset(model, log_file, ignore_task_ids):
     metric_logger = Logger(list_subsets=["test"])
 
     for task_id, _ in enumerate(eval_dataset):
-        if task_id in ignore_task_ids: continue
+        if task_id in ignore_task_ids:
+            continue
         # breakpoint()
         # if task_id == 2: break
         logging.info(f"MagMax Evaluation for task {task_id} has started.")
@@ -190,7 +191,9 @@ def search_evaluate_merging():
     ignore_task_id = len(adapter_paths) - 1
     pretrained_checkpoint = adapter_paths[ignore_task_id]
     task_vectors = [
-        TaskVector(pretrained_checkpoint, ckpt) for i, ckpt in enumerate(adapter_paths) if i != ignore_task_id
+        TaskVector(pretrained_checkpoint, ckpt)
+        for i, ckpt in enumerate(adapter_paths)
+        if i != ignore_task_id
     ]
 
     funcs_and_coeffs = [
@@ -220,7 +223,8 @@ def search_evaluate_merging():
             model = merged_tv.apply_to(pretrained_checkpoint, scaling_coef=scaling_coef)
             model.to(device)
             # Evaluate
-            eval_single_dataset(model, log_file, [ ignore_task_id ])
+            # eval_single_dataset(model, log_file, [ ignore_task_id ])
+            eval_single_dataset(model, log_file, [])
 
 
 if __name__ == "__main__":
