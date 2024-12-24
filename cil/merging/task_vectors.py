@@ -1,5 +1,7 @@
 import torch
 from typing import List
+import numpy as np
+from util import get_config
 
 
 class TaskVector():
@@ -112,10 +114,14 @@ def merge_rnd_mix(task_vectors):
     return TaskVector(vector=new_vector)
 
 
-def merge_max_abs(task_vectors: List[TaskVector]):
+def merge_max_abs(task_vectors: List[TaskVector], percentage=100):
     """Mix multiple task vectors together by highest parameter value."""
     if len(task_vectors) == 0:
         return task_vectors[0]
+    
+    cfg = get_config()
+    if '+take_percentage' in cfg:
+        percentage = int(cfg.take_percentage)
     
         
     with torch.no_grad():
@@ -134,7 +140,86 @@ def merge_max_abs(task_vectors: List[TaskVector]):
                 # Update max_abs_tensor to keep the element-wise maximum absolute values
                 max_abs_tensor = torch.where(current_tensor.abs() >= max_abs_tensor.abs(), current_tensor, max_abs_tensor)
             
+                top_max_abs_tensor = update_tensor_by_higher_values(max_abs_tensor, current_tensor, percentage=percentage)
                 # Assign the final tensor to the new_vector dictionary
-                new_vector[key] = max_abs_tensor
+                new_vector[key] = top_max_abs_tensor
 
     return TaskVector(vector=new_vector)
+
+
+def update_tensor_by_higher_values(tensor_a, tensor_b, percentage=50):
+    """
+    Updates tensor_a with the top percentage of tensor_b values, but only considers
+    positions where tensor_b is higher than tensor_a.
+    
+    Args:
+        tensor_a (torch.Tensor): Tensor to be updated
+        tensor_b (torch.Tensor): Tensor used for finding top values
+        percentage (float): Percentage of higher values to consider (0 to 100)
+    
+    Returns:
+        torch.Tensor: Updated version of tensor_a
+    """
+    if not 0 <= percentage <= 100:
+        raise ValueError("Percentage must be between 0 and 100")
+    
+    # Create a mask where tensor_b is higher than tensor_a
+    higher_mask = tensor_b > tensor_a
+    
+    # Get values of tensor_b where it's higher than tensor_a
+    higher_values = tensor_b[higher_mask]
+    
+    # If no values are higher, return original tensor_a
+    if higher_values.numel() == 0:
+        return tensor_a.clone()
+    
+    # Calculate how many values to keep based on percentage
+    k = max(1, int(higher_values.numel() * (percentage / 100)))
+    
+    # Find the top k values among the higher values
+    top_k_values, top_k_indices = torch.topk(higher_values, k)
+    
+    # Get the minimum value among the top k values
+    threshold = top_k_values[-1]
+    
+    # Create final mask for updating: where b > a AND b >= threshold
+    final_mask = (tensor_b > tensor_a) & (tensor_b >= threshold)
+    
+    # Update tensor_a only at the positions where final_mask is True
+    updated_tensor = torch.where(final_mask, tensor_b, tensor_a)
+    
+    return updated_tensor
+
+
+def update_tensor_by_top_k(tensor_a, tensor_b, k=20):
+    """
+    Updates tensor_a based on the top k maximum absolute values in tensor_b.
+
+    Args:
+        tensor_a (torch.Tensor): Tensor to be updated
+        tensor_b (torch.Tensor): Tensor used for finding top k values
+        k (int): Number of top values to consider (default: 20)
+
+    Returns:
+        torch.Tensor: Updated version of tensor_a
+    """
+    # Get absolute values of tensor_b
+    abs_b = torch.abs(tensor_b)
+
+    # Find the top k values and their indices
+    top_k_values, top_k_indices = torch.topk(abs_b.flatten(), k)
+
+    # Create a mask of zeros with the same shape as tensor_b
+    mask = torch.zeros_like(tensor_b)
+
+    # Convert flat indices back to original tensor dimensions
+    indices = np.unravel_index(top_k_indices.cpu().numpy(), tensor_b.shape)
+
+    # Set the mask to 1 at the positions of top k values
+    mask[indices] = 1
+
+    # Update tensor_a only at the positions where mask is 1
+    # Keep original values where mask is 0
+    updated_tensor = torch.where(mask == 1, tensor_b, tensor_a)
+
+    return updated_tensor
