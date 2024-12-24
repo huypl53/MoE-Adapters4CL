@@ -189,12 +189,12 @@ def search_evaluate_merging(cfg: DictConfig) -> None:
 
     # TODO: choose better pretrained
     ignore_task_id = len(adapter_paths) - 1
-    pretrained_task = cfg.get("pretrained_task", 'last')
-    if pretrained_task == 'last':
+    pretrained_task = cfg.get("pretrained_task", "last")
+    if pretrained_task == "last":
         pass
-    if pretrained_task == 'middle':
+    if pretrained_task == "middle":
         ignore_task_id = len(adapter_paths) // 2
-    if pretrained_task == 'first':
+    if pretrained_task == "first":
         ignore_task_id = 0
 
     pretrained_checkpoint = adapter_paths[ignore_task_id]
@@ -203,6 +203,8 @@ def search_evaluate_merging(cfg: DictConfig) -> None:
         for i, ckpt in enumerate(adapter_paths)
         if i != ignore_task_id
     ]
+
+    kept_percentage = cfg.get("kept_percentage", 100)
 
     funcs_and_coeffs = [
         # (merge_rnd_mix, np.linspace(0.5, 1.5, num=n_coeffs+1)[1:]),
@@ -221,10 +223,13 @@ def search_evaluate_merging(cfg: DictConfig) -> None:
         print(f"\nMerging with function: {func_name}")
         with open(log_file, "a+") as f_log:
             f_log.write(f"\nMerging with function: {func_name}" + "\n")
-        merged_tv = f(task_vectors)
+            if func_name == "merge_max_abs":
+                merged_tv, higher_rates = f(task_vectors, kept_percentage)
+                f_log.write(json.dumps({"higher_rates": higher_rates}))
+            else:
+                merged_tv = f(task_vectors)
 
         # Apply the resulting task vector
-        results = {}
         for scaling_coef in coeffs:
             print(f"Scaling coeff: {scaling_coef}")
             with open(log_file, "a+") as f_log:
