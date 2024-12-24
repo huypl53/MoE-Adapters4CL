@@ -5,7 +5,7 @@ python main.py \
     --config-path configs/class \
     --config-name tinyimagenet_100-20.yaml \
     dataset_root="../datasets/" \
-    class_order="class_orders/tinyimagenet.yaml"
+    class_order="class_orders/tinyimagenet.yaml"  +pretrained_task="middle"
 
 # for imagenet-1000 dataset; 100 classes/task
 # python main.py \

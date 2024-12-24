@@ -22,7 +22,7 @@ eval_dataset, classes_names = None, None
 @hydra.main(config_path=None, config_name=None, version_base="1.1")
 def main(cfg: DictConfig) -> None:
     continual_clip(cfg)
-    search_evaluate_merging()
+    search_evaluate_merging(cfg)
 
 
 def continual_clip(cfg: DictConfig) -> None:
@@ -183,12 +183,20 @@ def eval_single_dataset(model, log_file, ignore_task_ids):
         )
 
 
-def search_evaluate_merging():
+def search_evaluate_merging(cfg: DictConfig) -> None:
     global adapter_paths
     n_splits = len(adapter_paths)
 
     # TODO: choose better pretrained
     ignore_task_id = len(adapter_paths) - 1
+    pretrained_task = cfg.get("pretrained_task", 'last')
+    if pretrained_task == 'last':
+        pass
+    if pretrained_task == 'middle':
+        ignore_task_id = len(adapter_paths) // 2
+    if pretrained_task == 'first':
+        ignore_task_id = 0
+
     pretrained_checkpoint = adapter_paths[ignore_task_id]
     task_vectors = [
         TaskVector(pretrained_checkpoint, ckpt)
