@@ -1,36 +1,47 @@
 import torch
+from typing import List
 
 
 class TaskVector():
-    def __init__(self, pretrained_checkpoint=None, finetuned_checkpoint=None, vector=None, finetuned_state_dict=None):
+    def __init__(self, pretrained_checkpoint=None, finetuned_checkpoint=None, vector=None, finetuned_state_dict=None, lazy=True):
         """Initializes the task vector from a pretrained and a finetuned checkpoints.
         
         This can either be done by passing two state dicts (one corresponding to the
         pretrained model, and another to the finetuned model), or by directly passying in
         the task vector state dict.
         """
+        self._lazy = lazy
         if vector is not None:
             self.vector = vector
         else:
-            with torch.no_grad():
-                assert pretrained_checkpoint
-                pretrained_state_dict = torch.load(pretrained_checkpoint).state_dict()
+            assert pretrained_checkpoint
+            self._pretrained_checkpoint = pretrained_checkpoint
+        
+        self.vector = None
+        
+    def load(self, save=False):
+        with torch.no_grad():
+            pretrained_state_dict = torch.load(self._pretrained_checkpoint).state_dict()
 
-                if finetuned_state_dict:
-                    print(f"Creating task vector from finetuned_state_dict based on {pretrained_checkpoint=}")
-                elif finetuned_checkpoint:
-                    print(f"Creating task vector from {finetuned_checkpoint=} based on {pretrained_checkpoint=}")
-                    finetuned_state_dict = torch.load(finetuned_checkpoint).state_dict()
+            if finetuned_state_dict:
+                print(f"Creating task vector from finetuned_state_dict based on {self._pretrained_checkpoint=}")
+            elif self._finetuned_checkpoint:
+                print(f"Creating task vector from {self._finetuned_checkpoint=} based on {self._pretrained_checkpoint=}")
+                finetuned_state_dict = torch.load(self._finetuned_checkpoint).state_dict()
 
-                self.vector = {}
-                # print(pretrained_state_dict.keys())
-                # print(finetuned_state_dict.keys())
-                for key in pretrained_state_dict:
-                    # print(pretrained_state_dict[key].dtype)
-                    if pretrained_state_dict[key].dtype in [torch.int64, torch.uint8]:
-                        print(f"Key {key} has dtype {pretrained_state_dict[key].dtype} -- skipping!")
-                        continue
-                    self.vector[key] = finetuned_state_dict[key] - pretrained_state_dict[key]
+            vector = {}
+            # print(pretrained_state_dict.keys())
+            # print(finetuned_state_dict.keys())
+            for key in pretrained_state_dict:
+                # print(pretrained_state_dict[key].dtype)
+                if pretrained_state_dict[key].dtype in [torch.int64, torch.uint8]:
+                    print(f"Key {key} has dtype {pretrained_state_dict[key].dtype} -- skipping!")
+                    continue
+                vector[key] = finetuned_state_dict[key] - pretrained_state_dict[key]
+            if save:
+                self.vector = vector
+                
+            return vector
     
     def __add__(self, other):
         """Add two task vectors together."""
@@ -101,27 +112,29 @@ def merge_rnd_mix(task_vectors):
     return TaskVector(vector=new_vector)
 
 
-def merge_max_abs(task_vectors):
+def merge_max_abs(task_vectors: List[TaskVector]):
     """Mix multiple task vectors together by highest parameter value."""
     if len(task_vectors) == 0:
         return task_vectors[0]
+    
         
     with torch.no_grad():
-        new_vector = {}
+        new_vector  = task_vectors[0].load()
         
-        # Iterate over keys in the first task vector
-        for key in task_vectors[0].vector:
-            # Get the initial tensor for the current key
-            max_abs_tensor = task_vectors[0].vector[key]
-            
-            # Iterate over the remaining task vectors
-            for task_vector in task_vectors[1:]:
-                current_tensor = task_vector.vector[key]
+        # Iterate over the remaining task vectors
+        for task_vector in task_vectors[1:]:
+            current_task_vector = task_vector.load()
                 
+            # Iterate over keys in the first task vector
+            for key in new_vector:
+                current_tensor = current_task_vector[key]
+                # Get the initial tensor for the current key
+                max_abs_tensor = new_vector[key]
+            
                 # Update max_abs_tensor to keep the element-wise maximum absolute values
                 max_abs_tensor = torch.where(current_tensor.abs() >= max_abs_tensor.abs(), current_tensor, max_abs_tensor)
             
-            # Assign the final tensor to the new_vector dictionary
-            new_vector[key] = max_abs_tensor
+                # Assign the final tensor to the new_vector dictionary
+                new_vector[key] = max_abs_tensor
 
     return TaskVector(vector=new_vector)
