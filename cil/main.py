@@ -211,8 +211,8 @@ def search_evaluate_merging(cfg: DictConfig) -> None:
         # (merge_max_abs, np.linspace(0.0, 1.0, num=n_coeffs+1)[1:]),
         # (sum, np.linspace(0.0, 2.0/n_splits, num=n_coeffs+1)[1:]),
         # (merge_rnd_mix, [1.0]),
-        # (merge_max_abs, [0.25, 0.5, 0.75]),
-        (merge_max_abs, [0.5]),
+        (merge_max_abs, [0.25, 0.5, 0.75]),
+        # (merge_max_abs, [0.5]),
         # (sum, [1.0 / (n_splits - 1)]),
     ]
 
