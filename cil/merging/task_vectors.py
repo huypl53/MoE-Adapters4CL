@@ -198,7 +198,7 @@ def update_tensor_by_higher_values(
     if not 0 <= percentage <= 100:
         raise ValueError("Percentage must be between 0 and 100")
 
-    higher_mask = tensor_b > tensor_a
+    higher_mask = tensor_b.abs() > tensor_a.abs()
     higher_values = tensor_b[higher_mask]
     if higher_values.numel() == 0:
         return tensor_a.clone(), 0
